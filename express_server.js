@@ -9,6 +9,14 @@ const urlDatabase = {
   "9sm5xK": "http://www.google.com"
 };
 
+const users = {
+  userRandomID: {
+    id: "userRandomID",
+    email: "user@example.com",
+    password: "purple-monkey-dinosaur"
+  }
+};
+
 function generateRandomString() {
   let input = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXTZabcdefghiklmnopqrstuvwxyz";
   let output = "";
@@ -17,6 +25,37 @@ function generateRandomString() {
     output += input.substring(rnum, rnum + 1);
   }
   return output;
+}
+
+function findUser(email) {
+  for (let i = 0; i < Object.values(users).length; i++) {
+    if (Object.values(users)[i].email === email) {
+      return true;
+    }
+  }
+  return false;
+}
+// i can use for in loop to make loading faster,
+// for (let id in users) {
+//  if (users[id].email === email)
+// }
+
+function findUserId(email) {
+  for (let i = 0; i < Object.values(users).length; i++) {
+    if (Object.values(users)[i].email === email) {
+      return Object.values(users)[i].id;
+    }
+  }
+  return null;
+}
+
+function findUserPassword(email) {
+  for (let i = 0; i < Object.values(users).length; i++) {
+    if (Object.values(users)[i].email === email) {
+      return Object.values(users)[i].password;
+    }
+  }
+  return null;
 }
 
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -44,14 +83,64 @@ app.post("/urls/:shortURL/edit", (req, res) => {
 });
 
 app.post("/login", (req, res) => {
-  //console.log(req.body);
-  res.cookie("username", req.body.username);
-  res.redirect("/urls");
+  let email = req.body.email;
+  let password = req.body.password;
+  let randomID = generateRandomString();
+
+  users[randomID] = {
+    id: randomID,
+    email: email,
+    password: password
+  };
+  const userId = findUserId(req.body.email);
+
+  if (findUserPassword(email) !== password) {
+    res.status(403);
+    res.send("The email or password does not match, please try again!");
+  } else {
+    res.cookie("user_id", userId);
+    res.redirect("/urls");
+  }
 });
 
 app.post("/logout", (req, res) => {
-  res.cookie("username", "");
+  res.cookie("user_id", "");
   res.redirect("/urls");
+});
+
+app.post("/register", (req, res) => {
+  let email = req.body.email;
+  let password = req.body.password;
+  let randomID = generateRandomString();
+
+  if (email === "" && password === "") {
+    res.status(400);
+    res.send("email and password are empty");
+    return;
+  } else if (findUser(email)) {
+    res.status(400);
+    res.send("email is already register");
+    return;
+  } else {
+    users[randomID] = {
+      id: randomID,
+      email: email,
+      password: password
+    };
+
+    res.cookie("user_id", randomID);
+    res.redirect("/urls");
+  }
+});
+
+app.get("/register", (req, res) => {
+  let templateVars = { user: users[req.cookies.user_id] };
+  res.render("registration", templateVars);
+});
+
+app.get("/login", (req, res) => {
+  let templateVars = { user: users[req.cookies.user_id] };
+  res.render("login", templateVars);
 });
 
 app.get("/", (req, res) => {
@@ -59,16 +148,20 @@ app.get("/", (req, res) => {
 });
 
 app.get("/urls/new", (req, res) => {
-  let templateVars = { username: req.cookies["username"] };
+  let templateVars = { user: users[req.cookies.user_id] };
   res.render("urls_new", templateVars);
 });
 
 app.get("/urls/:shortURL", (req, res) => {
   let shortUrl = req.params.shortURL;
+  // findUser(id) some function that runs and gets me the user object;
+
+  //req.cookies.user_id = 'userRandomID'
+
   let templateVars = {
     shortURL: shortUrl,
     longURL: urlDatabase[shortUrl],
-    username: req.cookies["username"]
+    user: users[req.cookies.user_id]
   };
   res.render("urls_show", templateVars);
 });
@@ -88,7 +181,7 @@ app.get("/hello", (req, res) => {
 });
 
 app.get("/urls", (req, res) => {
-  let templateVars = { urls: urlDatabase, username: req.cookies["username"] };
+  let templateVars = { urls: urlDatabase, user: users[req.cookies.user_id] };
   res.render("urls_index", templateVars);
 });
 
