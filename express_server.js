@@ -5,8 +5,8 @@ const app = express();
 
 const PORT = 8080; //default port 8080
 const urlDatabase = {
-  b2xVn2: "http://www.lighthouselabs.ca",
-  "9sm5xK": "http://www.google.com"
+  b6UTxQ: { longURL: "https://www.tsn.ca", userID: "aJ48lW" },
+  i3BoGr: { longURL: "https://www.google.ca", userID: "aJ48lW" }
 };
 
 const users = {
@@ -66,7 +66,11 @@ app.set("view engine", "ejs");
 app.post("/urls", (req, res) => {
   console.log(req.body); // Log the POST request body to the console
   const shorturl = generateRandomString();
-  urlDatabase[shorturl] = req.body.longURL;
+  urlDatabase[shorturl] = {
+    longURL: req.body.longURL,
+    userID: req.cookies.user_id
+  };
+  console.log(urlDatabase);
   res.redirect(`/urls/${shorturl}`); // Respond with 'Ok' (we will replace this)
 });
 
@@ -149,7 +153,11 @@ app.get("/", (req, res) => {
 
 app.get("/urls/new", (req, res) => {
   let templateVars = { user: users[req.cookies.user_id] };
-  res.render("urls_new", templateVars);
+  if (req.cookies.user_id) {
+    res.render("urls_new", templateVars);
+  } else {
+    res.redirect("/login");
+  }
 });
 
 app.get("/urls/:shortURL", (req, res) => {
@@ -160,7 +168,7 @@ app.get("/urls/:shortURL", (req, res) => {
 
   let templateVars = {
     shortURL: shortUrl,
-    longURL: urlDatabase[shortUrl],
+    longURL: urlDatabase[shortUrl].longURL,
     user: users[req.cookies.user_id]
   };
   res.render("urls_show", templateVars);
@@ -168,7 +176,7 @@ app.get("/urls/:shortURL", (req, res) => {
 
 app.get("/u/:shortURL", (req, res) => {
   let shortUrl = req.params.shortURL;
-  const longURL = urlDatabase[shortUrl];
+  const longURL = urlDatabase[shortUrl].longURL;
   res.redirect(longURL);
 });
 
@@ -181,8 +189,20 @@ app.get("/hello", (req, res) => {
 });
 
 app.get("/urls", (req, res) => {
-  let templateVars = { urls: urlDatabase, user: users[req.cookies.user_id] };
-  res.render("urls_index", templateVars);
+  if (req.cookies.user_id) {
+    let filteredUrls = {};
+    for (const item of Object.keys(urlDatabase)) {
+      console.log(item);
+      console.log(urlDatabase[item].userID);
+      if (urlDatabase[item].userID === req.cookies.user_id) {
+        filteredUrls[item] = urlDatabase[item].longURL;
+      }
+    }
+    let templateVars = { urls: filteredUrls, user: users[req.cookies.user_id] };
+    res.render("urls_index", templateVars);
+  } else {
+    res.redirect("/login");
+  }
 });
 
 app.listen(PORT, () => {
